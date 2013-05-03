@@ -51,7 +51,7 @@ type PromoCode struct {
 
 var (
 	mgoSession   *mgo.Session
-	databaseName = "progolfscout"
+	databaseName = os.Getenv("MONGOHQ_DB_NAME")
 )
 
 func getMongoSession() *mgo.Session {
