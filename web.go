@@ -57,7 +57,7 @@ var (
 func getMongoSession() *mgo.Session {
 	if mgoSession == nil {
 		var err error
-		mgoSession, err = mgo.Dial(os.Getenv("MONGOHOST"))
+		mgoSession, err = mgo.Dial(os.Getenv("MONGOHQ_URL"))
 		if err != nil {
 			log.Fatal(err)
 		}
