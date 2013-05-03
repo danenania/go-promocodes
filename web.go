@@ -77,7 +77,7 @@ func CreateCode(w http.ResponseWriter, r *http.Request) {
 	coll := session.DB(databaseName).C("promocodes")
 	err := coll.Insert(&PromoCode{code, time.Now(), time.Time{}})
   if err != nil {
-    log.Fatal(err)
+    print(err)
   }
   fmt.Fprint(w, code)
 }
