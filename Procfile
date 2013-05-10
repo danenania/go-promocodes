@@ -1,1 +1,1 @@
-web: promocodes
+web: go-promocodes
