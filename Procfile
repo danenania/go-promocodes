@@ -1,1 +1,1 @@
-web: pgs
+web: promocodes
