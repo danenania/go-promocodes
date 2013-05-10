@@ -1,19 +1,19 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"log"
+	"math/rand"
 	"net/http"
-  "os"
+	"os"
 	"time"
-  "fmt"
-  "math/rand"
 )
 
 func main() {
-  rand.Seed( time.Now().UTC().UnixNano())
+	rand.Seed(time.Now().UTC().UnixNano())
 	m := mux.NewRouter()
 
 	//redeem code
@@ -23,24 +23,27 @@ func main() {
 	m.HandleFunc("/pc", CreateCode).
 		Queries("p", os.Getenv("PROMOPW"))
 
-  m.HandleFunc("/pcall", ListCodes).
-    Queries("p", os.Getenv("PROMOPW"))
+	m.HandleFunc("/pcall", ListCodes).
+		Queries("p", os.Getenv("PROMOPW"))
 
-  port := os.Getenv("PORT")
+	port := os.Getenv("PORT")
 
 	http.Handle("/", m)
-  fmt.Println("Listening on port " + port + "...")
-  log.Fatal(http.ListenAndServe(":"+port, nil))
+	fmt.Println("Listening on port " + port + "...")
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-const CodeChars = "abcdefghijklmnopqrstuvwxyz"
+const (
+	CODE_SIZE  = 12
+	CODE_CHARS = "abcdefghijklmnopqrstuvwxyz"
+)
 
 func RandString(size int) string {
-    buf := make([]byte, size)
-    for i := 0; i < size; i++ {
-        buf[i] = CodeChars[rand.Intn(len(CodeChars))]
-    }
-    return string(buf)
+	buf := make([]byte, size)
+	for i := 0; i < size; i++ {
+		buf[i] = CODE_CHARS[rand.Intn(len(CODE_CHARS))]
+	}
+	return string(buf)
 }
 
 type PromoCode struct {
@@ -65,7 +68,7 @@ func getMongoSession() *mgo.Session {
 	return mgoSession.Clone()
 }
 
-func getRequestVar(r *http.Request, k string) string{
+func getRequestVar(r *http.Request, k string) string {
 	vars := mux.Vars(r)
 	return vars[k]
 }
@@ -73,56 +76,54 @@ func getRequestVar(r *http.Request, k string) string{
 func CreateCode(w http.ResponseWriter, r *http.Request) {
 	session := getMongoSession()
 	defer session.Close()
-  code := RandString(12)
+	code := RandString(CODE_SIZE)
 	coll := session.DB(databaseName).C("promocodes")
 	err := coll.Insert(&PromoCode{code, time.Now(), time.Time{}})
-  if err != nil {
-    fmt.Println(err)
-  }
-  fmt.Fprint(w, code)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Fprint(w, code)
 }
 
 func ListCodes(w http.ResponseWriter, r *http.Request) {
-  session := getMongoSession()
-  defer session.Close()
+	session := getMongoSession()
+	defer session.Close()
 
-  coll := session.DB(databaseName).C("promocodes")
+	coll := session.DB(databaseName).C("promocodes")
 
+	redeemed := coll.Find(bson.M{"redeemed": bson.M{"$ne": nil}}).Sort("created").Iter()
+	valid := coll.Find(bson.M{"redeemed": nil}).Sort("redeemed").Iter()
 
-  redeemed := coll.Find(bson.M{"redeemed": bson.M{"$ne" : nil}}).Sort("created").Iter()
-  valid := coll.Find(bson.M{"redeemed": nil}).Sort("redeemed").Iter()
+	resp := "<html><body><h1>Valid</h1>"
 
-  resp := "<html><body><h1>Valid</h1>"
+	var v PromoCode
 
-  var v PromoCode
+	for valid.Next(&v) {
+		resp += v.Code
+		resp += " - <strong>Created</strong> " + v.Created.Format(time.RFC850)
+		resp += "<br>"
+	}
 
-  for valid.Next(&v) {
-    resp +=  v.Code
-    resp += " - <strong>Created</strong> " + v.Created.Format(time.RFC850)
-    resp += "<br>"
-  }
+	resp += "<br><br>"
+	resp += "<h1>Redeemed</h1>"
 
-  resp += "<br><br>"
-  resp += "<h1>Redeemed</h1>"
+	for redeemed.Next(&v) {
+		resp += v.Code
+		resp += " - <strong>Created</strong> " + v.Created.Format(time.RFC850) + " | <strong>Redeemed</strong> " + v.Redeemed.Format(time.RFC850)
+		resp += "<br>"
+	}
 
-  for redeemed.Next(&v) {
-    resp +=  v.Code
-    resp += " - <strong>Created</strong> " + v.Created.Format(time.RFC850) + " | <strong>Redeemed</strong> " + v.Redeemed.Format(time.RFC850)
-    resp += "<br>"
-  }
+	resp += "</body></html>"
 
-  resp += "</body></html>"
-
-  fmt.Fprint(w, resp)
+	fmt.Fprint(w, resp)
 }
-
 
 func RedeemCode(w http.ResponseWriter, r *http.Request) {
 	session := getMongoSession()
 	defer session.Close()
 
 	code := getRequestVar(r, "code")
-  coll := session.DB(databaseName).C("promocodes")
-  err := coll.Update(bson.M{"code": code}, bson.M{"$set" : bson.M{"redeemed": time.Now()}})
-  fmt.Fprint(w, err == nil)
+	coll := session.DB(databaseName).C("promocodes")
+	err := coll.Update(bson.M{"code": code}, bson.M{"$set": bson.M{"redeemed": time.Now()}})
+	fmt.Fprint(w, err == nil)
 }
