@@ -1,6 +1,3 @@
-Promo Code Server In Golang With MongoDB On Heroku
---------------------------------------------------
-
 Go learning project. Simple implementation of a promo code generator and validator for giving reviewers access to in app purchase protected areas of an iOS app. Minimal query string based authentication and short, easy to type promo codes.
 
 Uses MongoDB hosted via MongoHQ Heroku addon with mgo for persistence and gorilla/mux for routing.
